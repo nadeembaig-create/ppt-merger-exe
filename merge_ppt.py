@@ -1,7 +1,6 @@
 import os
 from pptx import Presentation
 from tkinter import Tk, filedialog, simpledialog, messagebox
-from tkinterdnd2 import DND_FILES, TkinterDnD
 from copy import deepcopy
 
 def clone_slide(prs, slide):
@@ -15,18 +14,10 @@ def clone_slide(prs, slide):
             new_el, 'p:extLst'
         )
 
-    for rel in slide.part.rels:
-        if "notesSlide" not in rel:
-            new_slide.part.rels.add_relationship(
-                rel.reltype,
-                rel._target,
-                rel.rId
-            )
-
 def merge_presentations(files, output_file):
     merged = Presentation()
 
-    # remove default slide
+    # Remove default slide
     while merged.slides:
         rId = merged.slides._sldIdLst[0].rId
         merged.part.drop_rel(rId)
@@ -40,46 +31,48 @@ def merge_presentations(files, output_file):
     merged.save(output_file)
     messagebox.showinfo("Success", f"Merged file created:\n{output_file}")
 
+def select_files():
+    files = filedialog.askopenfilenames(
+        title="Select PowerPoint files",
+        filetypes=[("PowerPoint Files", "*.pptx")]
+    )
+    return list(files)
+
 def select_folder():
-    folder = filedialog.askdirectory(title="Select Folder Containing PPT Files")
+    folder = filedialog.askdirectory(title="Select folder containing PPT files")
     if not folder:
-        return
-    files = [os.path.join(folder, f) for f in os.listdir(folder) if f.endswith(".pptx")]
-    process_files(files)
+        return []
+    return [
+        os.path.join(folder, f)
+        for f in os.listdir(folder)
+        if f.lower().endswith(".pptx")
+    ]
 
-def process_files(files):
+def main():
+    root = Tk()
+    root.withdraw()
+
+    choice = messagebox.askyesno(
+        "Merge Method",
+        "YES = Merge entire folder\nNO = Select individual files"
+    )
+
+    files = select_folder() if choice else select_files()
+
     if not files:
-        messagebox.showerror("Error", "No PowerPoint files found.")
+        messagebox.showerror("Error", "No PowerPoint files selected.")
         return
 
-    name = simpledialog.askstring("Output File", "Enter output file name:")
+    name = simpledialog.askstring(
+        "Output File",
+        "Enter output filename (without extension):"
+    )
+
     if not name:
         return
 
-    if not name.lower().endswith(".pptx"):
-        name += ".pptx"
-
-    output = os.path.join(os.path.dirname(files[0]), name)
+    output = os.path.join(os.path.dirname(files[0]), name + ".pptx")
     merge_presentations(files, output)
 
-def drop(event):
-    files = root.tk.splitlist(event.data)
-    files = [f for f in files if f.endswith(".pptx")]
-    process_files(files)
-
-root = TkinterDnD.Tk()
-root.title("PowerPoint Merger")
-root.geometry("420x200")
-
-label = messagebox.showinfo(
-    "Instructions",
-    "Drag & drop PPT files here\nOR\nCancel to select a folder"
-)
-
-root.drop_target_register(DND_FILES)
-root.dnd_bind('<<Drop>>', drop)
-
-if messagebox.askyesno("Folder Merge", "Do you want to merge an entire folder?"):
-    select_folder()
-
-root.mainloop()
+if __name__ == "__main__":
+    main()
